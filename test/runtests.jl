@@ -1,5 +1,7 @@
-using Main.Permanents
+using Permanents
 using Test
+
+const ATOL = 1e6*eps()
 
 function fourier_matrix(n; normalized = true)
 
@@ -29,6 +31,7 @@ end
 
         U = fourier_matrix(n, normalized = false)
         @test naive(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
+        @test ryser(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
     end
 
 end
