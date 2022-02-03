@@ -33,6 +33,7 @@ end
         @test naive(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
         @test ryser(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
         @test fast_glynn_perm(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
+        @test multi_dim_ryser(U, ones(n,n)) ≈ abs(theoretical_permanents_fourier_matrix[n]).^2 atol=ATOL
     end
 
 end
