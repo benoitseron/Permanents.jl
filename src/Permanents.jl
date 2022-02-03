@@ -1,6 +1,6 @@
 module Permanents
 
-export naive, naive_tensor, ryser
+export naive, naive_tensor, ryser, fast_glynn_perm
 
 using Combinatorics:permutations
 using LinearAlgebra
@@ -87,5 +87,40 @@ function ryser(A::AbstractMatrix)
 		end
 
 end
+
+end
+
+function fast_glynn_perm(U::AbstractMatrix{T}) where T
+
+	size(U)[1] == size(U)[2] ? n=size(U)[1] : error("Non square matrix as input")
+
+	row_ = [U[:,i] for i in 1:n]
+	row_comb = [sum(row) for row in row_]
+
+	res = 0
+	old_gray = 0
+	sign = +1
+	binary_power_dict = Dict(2^k => k for k in 0:n)
+	num_iter = 2^(n-1)
+
+	for bin_index in 1:num_iter
+		res += sign * reduce(*, row_comb)
+
+		new_gray = bin_index ⊻ trunc(Int, bin_index/2)
+		gray_diff = old_gray ⊻ new_gray
+		gray_diff_index = binary_power_dict[gray_diff]
+
+		new_vec = U[gray_diff_index+1,:]
+		direction = 2 * cmp(old_gray, new_gray)
+
+		for i in 1:n
+			row_comb[i] += new_vec[i] * direction
+		end
+
+		sign = -sign
+		old_gray = new_gray
+	end
+
+	return res/num_iter
 
 end
