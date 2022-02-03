@@ -32,6 +32,7 @@ end
         U = fourier_matrix(n, normalized = false)
         @test naive(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
         @test ryser(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
+        @test fast_glynn_perm(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
     end
 
 end
