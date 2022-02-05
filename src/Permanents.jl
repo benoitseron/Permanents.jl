@@ -2,7 +2,7 @@ module Permanents
 
 export naive, naive_tensor, ryser
 
-using Combinatorics:permutations
+using Combinatorics
 using LinearAlgebra
 
 function naive(U::AbstractMatrix)
@@ -28,6 +28,41 @@ function naive_tensor(W::Array)
         error("tensor permanent implemented only for square 3-indices tensors")
     end
 
+end
+
+function multi_dim_ryser(U, gram_matrix)
+
+    # https://arxiv.org/pdf/1410.7687.pdf
+
+    n = size(U)[1]
+    nstring = collect(1:n)
+    sub_nstring = collect(powerset(nstring))
+    sub_nstring = sub_nstring[2:length(sub_nstring)]
+    res = 0
+
+    function delta_set(S1, S2)
+        if S1 == S2
+            return 1
+        else
+            return 0
+        end
+    end
+
+    for r = 1:length(sub_nstring)
+        for s = r:length(sub_nstring)
+            R = sub_nstring[r]
+            S = sub_nstring[s]
+
+            t = prod(
+                sum(
+                    U[ss, j] * conj(U[rr, j]) * gram_matrix[rr, ss] for rr in R for ss in S
+                ) for j = 1:n
+            )
+            res +=
+                (2 - delta_set(S, R)) * (-1)^(length(S) + length(R)) * real(t)
+        end
+    end
+    return res
 end
 
 function ryser(A::AbstractMatrix)
@@ -87,5 +122,40 @@ function ryser(A::AbstractMatrix)
 		end
 
 end
+
+function fast_glynn_perm(U::AbstractMatrix{T}) where T
+		
+	""" https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible """
+
+	size(U)[1] == size(U)[2] ? n=size(U)[1] : error("Non square matrix as input")
+
+	row_ = [U[:,i] for i in 1:n]
+	row_comb = [sum(row) for row in row_]
+
+	res = 0
+	old_gray = 0
+	sign = +1
+	binary_power_dict = Dict(2^k => k for k in 0:n)
+	num_iter = 2^(n-1)
+
+	for bin_index in 1:num_iter
+		res += sign * reduce(*, row_comb)
+
+		new_gray = bin_index ⊻ trunc(Int, bin_index/2)
+		gray_diff = old_gray ⊻ new_gray
+		gray_diff_index = binary_power_dict[gray_diff]
+
+		new_vec = U[gray_diff_index+1,:]
+		direction = 2 * cmp(old_gray, new_gray)
+
+		for i in 1:n
+			row_comb[i] += new_vec[i] * direction
+		end
+
+		sign = -sign
+		old_gray = new_gray
+	end
+
+	return res/num_iter
 
 end
