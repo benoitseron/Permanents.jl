@@ -4,6 +4,7 @@ export naive, naive_tensor, ryser
 
 using Combinatorics
 using LinearAlgebra
+using Test
 
 function naive(U::AbstractMatrix)
 
@@ -124,7 +125,7 @@ function ryser(A::AbstractMatrix)
 end
 
 function fast_glynn_perm(U::AbstractMatrix{T}) where T
-		
+
 	""" https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible """
 
 	size(U)[1] == size(U)[2] ? n=size(U)[1] : error("Non square matrix as input")
@@ -157,5 +158,9 @@ function fast_glynn_perm(U::AbstractMatrix{T}) where T
 	end
 
 	return res/num_iter
+
+end
+
+
 
 end
