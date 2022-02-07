@@ -159,3 +159,5 @@ function fast_glynn_perm(U::AbstractMatrix{T}) where T
 	return res/num_iter
 
 end
+	
+end	
