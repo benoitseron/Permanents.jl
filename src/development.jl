@@ -60,3 +60,6 @@ L = prod([Polynomial(B[:,j][1:r]) for j in 1:n]).coeffs
 R = prod([Polynomial(G[i,:][1:r]) for i in 1:n]).coeffs
 
 [Polynomial(B[:,j][1:r]) for j in 1:n]
+
+n = 35
+t = @elapsed Permanents.ryser(ones(n,n))
