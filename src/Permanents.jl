@@ -1,6 +1,6 @@
 module Permanents
 
-export naive, naive_tensor, ryser
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm
 
 using Combinatorics
 using LinearAlgebra
