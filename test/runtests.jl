@@ -36,4 +36,7 @@ end
         @test multi_dim_ryser(U, ones(n,n)) ≈ abs(theoretical_permanents_fourier_matrix[n]).^2 atol=ATOL
     end
 
+    U = fourier_matrix(7,normalized = false)
+    @test glynn_precision(U; rtol = 1e-3, maxiter = 10^5) ≈ theoretical_permanents_fourier_matrix[7] rtol = 1e-2
+
 end

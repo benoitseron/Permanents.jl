@@ -1,6 +1,6 @@
 module Permanents
 
-export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision
 
 using Combinatorics
 using LinearAlgebra
@@ -124,7 +124,7 @@ function ryser(A::AbstractMatrix)
 end
 
 function fast_glynn_perm(U::AbstractMatrix{T}) where T
-		
+
 	""" https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible """
 
 	size(U)[1] == size(U)[2] ? n=size(U)[1] : error("Non square matrix as input")
@@ -159,5 +159,92 @@ function fast_glynn_perm(U::AbstractMatrix{T}) where T
 	return res/num_iter
 
 end
-	
-end	
+
+
+function glynn(U; niter)
+
+	"""approximates the permanent of U up to an additive error through the Gurvits/Glynn algorithm"""
+	# see https://arxiv.org/abs/1212.0025
+
+    function glynn_estimator(U,x)
+
+        function product_U_x(U, x)
+            result_product = one(typeof(U[1,1]))
+
+            for j = 1:n
+                result_product *= sum(U[j, :] .* x)
+            end
+
+            result_product
+        end
+
+        prod(x) * product_U_x(U, x)
+
+    end
+
+    n = size(U,1)
+    result = zero(eltype(U))
+
+    for i = 1:niter
+
+        x = rand([-1,1], n)
+        result += 1/niter * glynn_estimator(U,x)
+
+    end
+
+    result
+
+end
+
+function combine_glynn_estimators(est1, est2, n1, n2)
+
+	"""combines two glynn estimations of n1,n2 trials to give one with (n1 + n2)"""
+
+	(n1 * est1 + n2 * est2)/(n1 + n2)
+
+end
+
+function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps = 5)
+
+	growth_factor = (maxiter/miniter)^(1/steps)
+
+	growth_factor <= 2 ? (@warn "small growth factor, results may be inaccurate decrease steps") : nothing
+	# the number of iterations is multiplied by this number at
+	# each trial
+
+	if miniter<1e2
+		@warn "small miniter may give false results if the first estimations are by chance close to the next ones"
+	end
+
+	total_iter = 0
+	estimates = []
+	niters = []
+
+	niter = miniter
+	first_estimate = glynn(U; niter = niter)
+	push!(estimates, first_estimate)
+	push!(niters, niter)
+
+	estimates[end]
+
+	while total_iter < maxiter
+
+		niter *= growth_factor
+		new_estimate = glynn(U; niter = niter)
+		push!(estimates, new_estimate)
+		push!(niters, niter)
+		rel_err = abs(estimates[end] - estimates[end-1]) / abs(0.5*(estimates[end] + estimates[end-1]))
+
+		total_iter += niter
+
+		if rel_err < rtol
+			break
+		end
+	end
+
+	estimates[end]
+
+end
+
+
+end
