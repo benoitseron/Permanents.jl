@@ -1,9 +1,10 @@
 module Permanents
 
-export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor
 
 using Combinatorics
 using LinearAlgebra
+using ArgCheck
 
 function naive(U::AbstractMatrix)
 
@@ -16,10 +17,16 @@ function naive(U::AbstractMatrix)
     return sum(sum_diag(sigma, U) for sigma in permutations(collect(1:n)))
 
 end
+function is_a_square_three_tensor(W::Array)
+
+	length(size(W)) == 3 && all(size(W) .== size(W)[1])
+
+end
+
 
 function naive_tensor(W::Array)
 
-    if length(size(W)) == 3 && all(size(W) .== size(W)[1])
+    if is_a_square_three_tensor(W)
         n = size(W)[1]
 
         sum_tensor_diag(sigma,rho, W) = prod(W[i,sigma[i],rho[i]] for i = 1:n)
@@ -30,7 +37,51 @@ function naive_tensor(W::Array)
 
 end
 
+function ryser_tensor(W::Array)
+
+	"""implements the tensor permanent according to Ryser's factorization
+	without using Gray factoring
+
+	corresponds to Eq. 21 of https://arxiv.org/abs/1410.7687"""
+
+	@argcheck is_a_square_three_tensor(W) "tensor permanent implemented only for square 3-indices tensors"
+
+	n = size(U)[1]
+    nstring = collect(1:n)
+    sub_nstring = collect(powerset(nstring))
+    sub_nstring = sub_nstring[2:length(sub_nstring)]
+    res = 0
+
+    function delta_set(S1, S2)
+        if S1 == S2
+            return 1
+        else
+            return 0
+        end
+    end
+
+    for r = 1:length(sub_nstring)
+        for s = r:length(sub_nstring)
+            R = sub_nstring[r]
+            S = sub_nstring[s]
+
+            t = prod(
+                sum(
+					W[rr,ss,j] for rr in R for ss in S
+                ) for j = 1:n
+            )
+            res +=
+                (2 - delta_set(S, R)) * (-1)^(length(S) + length(R)) * real(t)
+        end
+    end
+    return res
+
+end
+
+
 function multi_dim_ryser(U, gram_matrix)
+
+	@warn "obsolete, please convert to ryser_tensor(W::Array)"
 
     # https://arxiv.org/pdf/1410.7687.pdf
 
