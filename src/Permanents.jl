@@ -46,7 +46,7 @@ function ryser_tensor(W::Array)
 
 	@argcheck is_a_square_three_tensor(W) "tensor permanent implemented only for square 3-indices tensors"
 
-	n = size(U)[1]
+    n = size(W)[1]
     nstring = collect(1:n)
     sub_nstring = collect(powerset(nstring))
     sub_nstring = sub_nstring[2:length(sub_nstring)]
