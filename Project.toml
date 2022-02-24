@@ -1,7 +1,7 @@
 name = "Permanents"
 uuid = "e0809bc7-674c-4283-bd35-3a6d484c6d12"
 authors = ["Benoît Seron <benoitseron@gmail.com> and Antoine Restivo <antoinerestivo@hotmail.fr>"]
-version = "0.1.2"
+version = "0.1.1"
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
