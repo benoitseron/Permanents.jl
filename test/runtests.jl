@@ -1,5 +1,6 @@
 using Permanents
 using Test
+using LinearAlgebra
 
 const ATOL = 1e6*eps()
 
