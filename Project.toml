@@ -6,7 +6,9 @@ version = "0.1.1"
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+ZMQ = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
 
 [compat]
 ArgCheck = "2"
