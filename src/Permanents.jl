@@ -6,9 +6,14 @@ using Combinatorics
 using LinearAlgebra
 using ArgCheck
 
+"""
+Computes the permanent of the matrix ``U`` of dimension ``n`` using the definition
+```math
+perm(U) = ∑_{σ∈S_n}∏_{i=1}^n U_{i,σ(i)}
+```
+as a naive implementation in ``n!`` arithmetic operations.
+"""
 function naive(U::AbstractMatrix)
-
-    """ computes the permanent using the definition as a naive implementation"""
 
     n = size(U)[1]
 
@@ -17,12 +22,12 @@ function naive(U::AbstractMatrix)
     return sum(sum_diag(sigma, U) for sigma in permutations(collect(1:n)))
 
 end
+
 function is_a_square_three_tensor(W::Array)
 
 	length(size(W)) == 3 && all(size(W) .== size(W)[1])
 
 end
-
 
 function naive_tensor(W::Array)
 
@@ -37,12 +42,17 @@ function naive_tensor(W::Array)
 
 end
 
+"""
+Compute the permanent the permanent of a ``n^3``-dimensional 3-tensor of the form
+```math
+W_{k,l,j} = M_{k,j} M_{l,j}^* S_{l,k}
+```
+following Ryser's algorithm in approximatively ``2^{2n-1}`` iterations following
+[Sampling of partially distinguishable bosons and the relation to the multidimensional permanent](https://arxiv.org/pdf/1410.7687.pdf).
+!!! warning
+	The current implementation does not use Gray code.
+"""
 function ryser_tensor(W::Array)
-
-	"""implements the tensor permanent according to Ryser's factorization
-	without using Gray factoring
-
-	corresponds to Eq. 21 of https://arxiv.org/abs/1410.7687"""
 
 	@argcheck is_a_square_three_tensor(W) "tensor permanent implemented only for square 3-indices tensors"
 
@@ -116,9 +126,17 @@ function multi_dim_ryser(U, gram_matrix)
     return res
 end
 
+"""
+Compute the permanent of a matrix ``A`` of dimension ``n`` using Ryser algorithm
+with Gray ordering
+```math
+perm(A) = (-1)^n ∑_{S ⊆ 1 … n} (-1)^{|S|} ∏_{i=1}^n ∑_{j ∈ S} A_{i,j}
+```
+and time complexity ``O(2^{n-1}n)``.
+!!! note
+	source: [https://discourse.julialang.org/t/matrix-permanent/10766](https://discourse.julialang.org/t/matrix-permanent/10766)
+"""
 function ryser(A::AbstractMatrix)
-	"""computes the permanent of A using ryser with Gray ordering"""
-		# code from https://discourse.julialang.org/t/matrix-permanent/10766
 		# see Combinatorial Algorithms for Computers and Calculators, Second Edition (Computer Science and Applied Mathematics) by Albert Nijenhuis, Herbert S. Wilf (z-lib.org)
 		# chapter 23 for the permanent algorithm
 		# chapter 1 for the gray code
@@ -174,9 +192,16 @@ function ryser(A::AbstractMatrix)
 
 end
 
+"""
+Compute the permanent of a matrix ``A`` of dimension ``n`` using Glynn formula
+```math
+perm(A) = (2^{n-1})^{-1} ∑_δ (∏_{k=1}^n δ_k) ∏_{j=1}^n ∑_{j=1}^n δ_i A_{i,j}
+```
+where ``δ ∈ (-1,+1)^n`` with time complexity ``O(n2^n)``.
+!!! note
+	source: (https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible)[https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible]
+"""
 function fast_glynn_perm(U::AbstractMatrix{T}) where T
-
-	""" https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible """
 
 	size(U)[1] == size(U)[2] ? n=size(U)[1] : error("Non square matrix as input")
 
