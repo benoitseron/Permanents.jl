@@ -1,9 +1,10 @@
 module Permanents
 
-export naive, naive_tensor, ryser
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor
 
 using Combinatorics
 using LinearAlgebra
+using ArgCheck
 
 function naive(U::AbstractMatrix)
 
@@ -16,10 +17,16 @@ function naive(U::AbstractMatrix)
     return sum(sum_diag(sigma, U) for sigma in permutations(collect(1:n)))
 
 end
+function is_a_square_three_tensor(W::Array)
+
+	length(size(W)) == 3 && all(size(W) .== size(W)[1])
+
+end
+
 
 function naive_tensor(W::Array)
 
-    if length(size(W)) == 3 && all(size(W) .== size(W)[1])
+    if is_a_square_three_tensor(W)
         n = size(W)[1]
 
         sum_tensor_diag(sigma,rho, W) = prod(W[i,sigma[i],rho[i]] for i = 1:n)
@@ -30,7 +37,51 @@ function naive_tensor(W::Array)
 
 end
 
+function ryser_tensor(W::Array)
+
+	"""implements the tensor permanent according to Ryser's factorization
+	without using Gray factoring
+
+	corresponds to Eq. 21 of https://arxiv.org/abs/1410.7687"""
+
+	@argcheck is_a_square_three_tensor(W) "tensor permanent implemented only for square 3-indices tensors"
+
+	n = size(U)[1]
+    nstring = collect(1:n)
+    sub_nstring = collect(powerset(nstring))
+    sub_nstring = sub_nstring[2:length(sub_nstring)]
+    res = 0
+
+    function delta_set(S1, S2)
+        if S1 == S2
+            return 1
+        else
+            return 0
+        end
+    end
+
+    for r = 1:length(sub_nstring)
+        for s = r:length(sub_nstring)
+            R = sub_nstring[r]
+            S = sub_nstring[s]
+
+            t = prod(
+                sum(
+					W[rr,ss,j] for rr in R for ss in S
+                ) for j = 1:n
+            )
+            res +=
+                (2 - delta_set(S, R)) * (-1)^(length(S) + length(R)) * real(t)
+        end
+    end
+    return res
+
+end
+
+
 function multi_dim_ryser(U, gram_matrix)
+
+	@warn "obsolete, please convert to ryser_tensor(W::Array)"
 
     # https://arxiv.org/pdf/1410.7687.pdf
 
@@ -160,4 +211,113 @@ function fast_glynn_perm(U::AbstractMatrix{T}) where T
 
 end
 
-end #module
+
+function glynn(U; niter)
+
+	"""approximates the permanent of U up to an additive error through the Gurvits/Glynn algorithm"""
+	# see https://arxiv.org/abs/1212.0025
+
+    function glynn_estimator(U,x)
+
+        function product_U_x(U, x)
+            result_product = one(typeof(U[1,1]))
+
+            for j = 1:n
+                result_product *= sum(U[j, :] .* x)
+            end
+
+            result_product
+        end
+
+        prod(x) * product_U_x(U, x)
+
+    end
+
+    n = size(U,1)
+    result = zero(eltype(U))
+
+    for i = 1:niter
+
+        x = rand([-1,1], n)
+        result += 1/niter * glynn_estimator(U,x)
+
+    end
+
+    result
+
+end
+
+function combine_glynn_estimators(est1, est2, n1, n2)
+
+	"""combines two glynn estimations of n1,n2 trials to give one with (n1 + n2)"""
+
+	(n1 * est1 + n2 * est2)/(n1 + n2)
+
+end
+
+function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps = 5)
+
+	growth_factor = (maxiter/miniter)^(1/steps)
+
+	growth_factor <= 2 ? (@warn "small growth factor, results may be inaccurate decrease steps") : nothing
+	# the number of iterations is multiplied by this number at
+	# each trial
+
+	if miniter<1e2
+		@warn "small miniter may give false results if the first estimations are by chance close to the next ones"
+	end
+
+	total_iter = 0
+	estimates = []
+	niters = []
+
+	niter = miniter
+	first_estimate = glynn(U; niter = niter)
+	push!(estimates, first_estimate)
+	push!(niters, niter)
+
+	estimates[end]
+
+	while total_iter < maxiter
+
+		niter *= growth_factor
+		new_estimate = glynn(U; niter = niter)
+		push!(estimates, new_estimate)
+		push!(niters, niter)
+		rel_err = abs(estimates[end] - estimates[end-1]) / abs(0.5*(estimates[end] + estimates[end-1]))
+
+		total_iter += niter
+
+		if rel_err < rtol
+			break
+		end
+	end
+
+	estimates[end]
+
+end
+
+function number_of_steps(permanent_function, n)
+
+    """gives the number of steps in an exact permanent function"""
+
+    steps = Dict(ryser => n -> n*2^n, naive => n -> factorial(big(n)), naive_tensor => n -> factorial(big(n))^2, ryser_tensor => n -> 2^(2n))
+
+    if permanent_function in keys(steps)
+        steps[permanent_function](big(n))
+    else
+        error("not implemented")
+    end
+end
+
+function error_permanent(permanent_function, n, T::Number)
+
+    """gives an expected error on the permanent_function computed of a type T
+    with a dimension n (matrix n*n, 3-tensor n*n*n)"""
+
+    eps(T) * sqrt(number_of_steps(permanent_function, n))
+
+end
+
+
+end
