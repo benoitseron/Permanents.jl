@@ -323,9 +323,9 @@ function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps =
 
 end
 
-function postive_permanent(A::AbstractMatrix, niter=1e4)
+function positive_permanent(A::AbstractMatrix, niter=1e4)
 
-	if !all(a -> a >= 0 for a in A)
+	if !all(>=(0), A)
 		throw(ArgumentError("Input matrix must be with non-negative entries"))
 	elseif size(A)[1] != size(A)[2]
 		throw(ArgumentError("Input matrix must be a square matrix"))
@@ -420,44 +420,44 @@ function postive_permanent(A::AbstractMatrix, niter=1e4)
 
 end
 
-function quantumInspired(A::AbstractMatrix, eps=1e-1, probFail=1e-1, C= 2)
-
-	if !ishermitian(A)
-		throw(ArgumentError("Input matrix must be hermitian"))
-	elseif !isposdef(A)
-		throw(ArgumentError("Input matrix must be at least positive semidefinite"))
-	end
-
-	D = eigvals(A)
-	U = eigvecs(A)
-
-	λ_max = maximum(D)
-	C = 2
-	n = length(D)
-
-	rescaling_factor = (C * λ_max)^(2n) / prod((C*λ_max-λ) for λ in D)
-	sample_size = trunc(Int, (rescaling_factor^2 * exp(-2n)) / (2eps^2) * log(1/probFail))
-	weight_array = Vector{Number}(undef, sample_size)
-
-	Threads.@threads for j in 1:sample_size
-
-		sample_array = Vector{Number}(undef, n)
-
-		for i in 1:n
-			mean_i = D[i] / (1-D[i])
-			d = Normal{Float64}(0.0, mean_i/2)
-			sample_array[i] = rand(d) + rand(d)im
-		end
-
-		sampled_amplitudes = [dot(U[:,i], sample_array) for i in 1:n]
-		weight_array[j] = prod(exp(-abs(sampled_amplitudes[i])^2 * abs(sampled_amplitudes[i])^2) for i = 1:n)
-
-	end
-
-	sample_mean = 1/sample_size * sum(weight_array[j] for j in 1:sample_size)
-	return sample_mean * rescaling_factor
-
-end
+# function quantumInspired(A::AbstractMatrix, eps=1e-1, probFail=1e-1, C= 2)
+#
+# 	if !ishermitian(A)
+# 		throw(ArgumentError("Input matrix must be hermitian"))
+# 	elseif !isposdef(A)
+# 		throw(ArgumentError("Input matrix must be at least positive semidefinite"))
+# 	end
+#
+# 	D = eigvals(A)
+# 	U = eigvecs(A)
+#
+# 	λ_max = maximum(D)
+# 	C = 2
+# 	n = length(D)
+#
+# 	rescaling_factor = (C * λ_max)^(2n) / prod((C*λ_max-λ) for λ in D)
+# 	sample_size = trunc(Int, (rescaling_factor^2 * exp(-2n)) / (2eps^2) * log(1/probFail))
+# 	weight_array = Vector{Number}(undef, sample_size)
+#
+# 	Threads.@threads for j in 1:sample_size
+#
+# 		sample_array = Vector{Number}(undef, n)
+#
+# 		for i in 1:n
+# 			mean_i = D[i] / (1-D[i])
+# 			d = Normal{Float64}(0.0, mean_i/2)
+# 			sample_array[i] = rand(d) + rand(d)im
+# 		end
+#
+# 		sampled_amplitudes = [dot(U[:,i], sample_array) for i in 1:n]
+# 		weight_array[j] = prod(exp(-abs(sampled_amplitudes[i])^2 * abs(sampled_amplitudes[i])^2) for i = 1:n)
+#
+# 	end
+#
+# 	sample_mean = 1/sample_size * sum(weight_array[j] for j in 1:sample_size)
+# 	return sample_mean * rescaling_factor
+#
+# end
 
 
 end
