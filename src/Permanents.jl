@@ -1,10 +1,11 @@
 module Permanents
 
-export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor, positive_permanent
 
 using Combinatorics
 using LinearAlgebra
 using ArgCheck
+using Distributions
 
 """
 Computes the permanent of the matrix ``U`` of dimension ``n`` using the definition
@@ -199,7 +200,7 @@ perm(A) = (2^{n-1})^{-1} ∑_δ (∏_{k=1}^n δ_k) ∏_{j=1}^n ∑_{j=1}^n δ_i 
 ```
 where ``δ ∈ (-1,+1)^n`` with time complexity ``O(n2^n)``.
 !!! note
-	source: (https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible)[https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible]
+	source: [https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible](https://codegolf.stackexchange.com/questions/97060/calculate-the-permanent-as-quickly-as-possible)
 """
 function fast_glynn_perm(U::AbstractMatrix{T}) where T
 
@@ -319,6 +320,142 @@ function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps =
 	end
 
 	estimates[end]
+
+end
+
+function postive_permanent(A::AbstractMatrix, niter=1e4)
+
+	if !all(a -> a >= 0 for a in A)
+		throw(ArgumentError("Input matrix must be with non-negative entries"))
+	elseif size(A)[1] != size(A)[2]
+		throw(ArgumentError("Input matrix must be a square matrix"))
+	end
+
+	n = size(A)[1]
+	nb_success = 0
+
+	function rescale_mat(A::AbstractMatrix, eps::Real)
+
+		B = A
+		n = size(A)[1]
+		x = ones(n)
+		y = x'
+
+		row_sum = [sum(A[i,:]) for i in 1:n]
+
+		while maximum([abs(r-1) for r in row_sum]) > eps
+			x = x .* row_sum.^(-1)
+			B = diagm(row_sum.^(-1)) * B
+			col_sum = [sum(B[:,i]) for i in 1:n]
+			y = y .* col_sum.^(-1)
+			y = y[:,1]
+			B *= diagm(col_sum.^(-1))
+			row_sum = [sum(B[i,:]) for i in 1:n]
+		end
+
+		return [B, x, y]
+
+	end
+
+	function hl_factor(x::AbstractVector)
+
+		x0 = [Bool(i==0) for i in x]
+		x = x .+ 0.5*x0
+
+		x_1 = [Bool(i>1) for i in x]
+		x__1 = [Bool(i<=1) for i in x]
+		log_x = [log(abs(i)) for i in x]
+
+		return x_1 .* (x .+ 0.5.*log_x .+ exp(1) .- 1) + x__1 .* (1 .+ (exp(1)-1).*x)
+
+	end
+
+	B, x, y = rescale_mat(A, 1e-5)
+	row_scaled = [maximum(B[i,:]) for i in 1:n].^(-1)
+	C = diagm(row_scaled) * B
+	C_i = copy(C)
+
+	for i in 1:niter
+
+		col = 1
+		C = copy(C_i)
+		row_sum = [sum(C[k,:]) for k in 1:n]
+
+		while col <= n
+
+			hl_i = hl_factor(row_sum)
+			hl1 = prod(hl_i/exp(1))
+			hl_i = hl_factor(row_sum - C[:,col])
+		 	hl2 = prod(hl_i/exp(1))
+
+			row_prob = exp(1) * C[:,col].*hl2/hl1./hl_factor(row_sum - C[:,col])
+			val = rand()
+			inter_bool = [Bool(sum_k < val) for sum_k in cumsum(row_prob)]
+			row_samp = sum(inter_bool) + 1
+
+			if row_samp == n+1
+				col = n+2
+				push!(row_sum, 0)
+			else
+				row_sum -= C[:,col]
+				C[row_samp,:] = zeros(n)
+				col += 1
+				row_sum[row_samp] = 0
+			end
+
+		end
+
+		if col == n+1
+			nb_success += 1
+		end
+
+	end
+
+	C = C_i
+	row_sum = sum(C[:,k] for k in 1:n)
+	hl_C = prod(hl_factor(row_sum)/exp(1))
+	res = hl_C * nb_success/niter
+
+	return res /prod(row_scaled)/prod(x)/prod(y)
+
+end
+
+function quantumInspired(A::AbstractMatrix, eps=1e-1, probFail=1e-1, C= 2)
+
+	if !ishermitian(A)
+		throw(ArgumentError("Input matrix must be hermitian"))
+	elseif !isposdef(A)
+		throw(ArgumentError("Input matrix must be at least positive semidefinite"))
+	end
+
+	D = eigvals(A)
+	U = eigvecs(A)
+
+	λ_max = maximum(D)
+	C = 2
+	n = length(D)
+
+	rescaling_factor = (C * λ_max)^(2n) / prod((C*λ_max-λ) for λ in D)
+	sample_size = trunc(Int, (rescaling_factor^2 * exp(-2n)) / (2eps^2) * log(1/probFail))
+	weight_array = Vector{Number}(undef, sample_size)
+
+	Threads.@threads for j in 1:sample_size
+
+		sample_array = Vector{Number}(undef, n)
+
+		for i in 1:n
+			mean_i = D[i] / (1-D[i])
+			d = Normal{Float64}(0.0, mean_i/2)
+			sample_array[i] = rand(d) + rand(d)im
+		end
+
+		sampled_amplitudes = [dot(U[:,i], sample_array) for i in 1:n]
+		weight_array[j] = prod(exp(-abs(sampled_amplitudes[i])^2 * abs(sampled_amplitudes[i])^2) for i = 1:n)
+
+	end
+
+	sample_mean = 1/sample_size * sum(weight_array[j] for j in 1:sample_size)
+	return sample_mean * rescaling_factor
 
 end
 
