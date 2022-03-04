@@ -323,7 +323,7 @@ function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps =
 
 end
 
-function positive_permanent(A::AbstractMatrix, niter=1e4)
+function positive_permanent(A::AbstractMatrix, niter=1e5)
 
 	if !all(>=(0), A)
 		throw(ArgumentError("Input matrix must be with non-negative entries"))
@@ -332,7 +332,7 @@ function positive_permanent(A::AbstractMatrix, niter=1e4)
 	end
 
 	n = size(A)[1]
-	nb_success = 0
+	@show nb_success = zeros(Threads.nthreads())
 
 	function rescale_mat(A::AbstractMatrix, eps::Real)
 
@@ -375,7 +375,7 @@ function positive_permanent(A::AbstractMatrix, niter=1e4)
 	C = diagm(row_scaled) * B
 	C_i = copy(C)
 
-	for i in 1:niter
+	Threads.@threads for i in 1:niter
 
 		col = 1
 		C = copy(C_i)
@@ -406,7 +406,7 @@ function positive_permanent(A::AbstractMatrix, niter=1e4)
 		end
 
 		if col == n+1
-			nb_success += 1
+		 	nb_success[Threads.threadid()] += 1
 		end
 
 	end
@@ -414,7 +414,7 @@ function positive_permanent(A::AbstractMatrix, niter=1e4)
 	C = C_i
 	row_sum = sum(C[:,k] for k in 1:n)
 	hl_C = prod(hl_factor(row_sum)/exp(1))
-	res = hl_C * nb_success/niter
+	res = hl_C * sum(nb_success)/niter
 
 	return res /prod(row_scaled)/prod(x)/prod(y)
 
