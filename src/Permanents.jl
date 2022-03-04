@@ -46,7 +46,9 @@ function ryser_tensor(W::Array)
 
 	@argcheck is_a_square_three_tensor(W) "tensor permanent implemented only for square 3-indices tensors"
 
+
     n = size(W)[1]
+
     nstring = collect(1:n)
     sub_nstring = collect(powerset(nstring))
     sub_nstring = sub_nstring[2:length(sub_nstring)]
@@ -297,5 +299,26 @@ function glynn_precision(U; rtol = 1e-5, miniter = 10^2, maxiter = 10^5, steps =
 
 end
 
+function number_of_steps(permanent_function, n)
+
+    """gives the number of steps in an exact permanent function"""
+
+    steps = Dict(ryser => n -> n*2^n, naive => n -> factorial(big(n)), naive_tensor => n -> factorial(big(n))^2, ryser_tensor => n -> 2^(2n))
+
+    if permanent_function in keys(steps)
+        steps[permanent_function](big(n))
+    else
+        error("not implemented")
+    end
+end
+
+function error_permanent(permanent_function, n, T::Number)
+
+    """gives an expected error on the permanent_function computed of a type T
+    with a dimension n (matrix n*n, 3-tensor n*n*n)"""
+
+    eps(T) * sqrt(number_of_steps(permanent_function, n))
+
+end
 
 end
