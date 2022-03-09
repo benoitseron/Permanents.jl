@@ -87,4 +87,7 @@ end
 
 	@test ryser_tensor(W) ≈  multi_dim_ryser(U, S)
 
+	U = rand(4,4)
+	@test positive_entry(U) ≈ naive(U) atol=1e-2
+
 end
