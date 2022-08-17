@@ -1,6 +1,6 @@
 module Permanents
 
-export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor, positive_entry
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor, positive_entry, hafnian
 
 using Combinatorics
 using LinearAlgebra
@@ -546,6 +546,52 @@ function positive_entry(A::AbstractMatrix, niter=1e5)
     res = hl_C * sum(nb_success)/niter
 
     return res /prod(row_scaled)/prod(x)/prod(y)
+
+end
+
+"""
+    hafnian(A::AbstractMatrix; loop=false)
+
+Compute the hafnian or the loop-hafnian of a symmetric matrix using the trace algorithm.
+source: Marek Cygan and Marcin Pilipczuk. Faster exponential-time algorithms in
+graphs of bounded average degree. Information and Computation, 243:75–85, 2015.
+"""
+function hafnian(A::AbstractMatrix; loop=false)
+    @argcheck issymmetric(A) && size(A)[1] == size(A)[2] && size(A)[1] % 2 == 0
+    n = div(size(A)[1], 2)
+    Pn = powerset(1:n)
+    haf = 0
+
+    for Z in Pn
+        retain = []
+        for i in 1:n
+            i in Z ? (push!(retain,i), push!(retain,n+i)) : nothing
+        end
+        sort!(unique!(retain))
+        @show Az = A[retain, retain]
+        @show v = diag(Az)'
+
+        id = Matrix{eltype(Az)}(I, div(size(Az)[1],2), div(size(Az)[2],2))
+        null = zeros(eltype(Az), div(size(Az)[1],2), div(size(Az)[2],2))
+        X = [null id; id null]
+        C = Az * X
+        eig = eigvals(C)
+
+        res = 0
+        for j in 1:n
+            inter = 0
+            for k in 1:n
+                if j*k == n
+                    loop ? inter += 0.5 * (sum(eig.^k)/k + dot(v,X*(C)^(k-1)*v')) : inter += 0.5 * (sum(eig.^k)/k)
+                end
+            end
+            res += 1/factorial(j) * inter^j
+        end
+
+        haf += (-1)^length(Z) * res
+    end
+
+    return haf
 
 end
 
