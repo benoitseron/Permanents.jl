@@ -90,4 +90,12 @@ end
 	U = rand(4,4)
 	@test positive_entry(U) ≈ naive(U) atol=1e-2
 
+	A = [0 0 0 1 0 0; 0 0 0 1 1 0; 0 0 0 1 1 1; 1 1 1 0 0 0; 0 1 1 0 0 0; 0 0 1 0 0 0]
+	@test hafnian(A) ≈ 1 atol=1e-4
+	@test hafnian(A, loop=true) ≈ 1 atol=1e-4
+
+	A = [1 0 0 1 0 0; 0 0 0 1 1 0; 0 0 0 1 1 1; 1 1 1 0 0 0; 0 1 1 0 1 0; 0 0 1 0 0 0]
+	@test hafnian(A) ≈ 1 atol=1e-4
+	@test hafnian(A, loop=true) ≈ 2 atol=1e-4
+
 end

@@ -6,6 +6,7 @@ using Combinatorics
 using LinearAlgebra
 using ArgCheck
 using Distributions
+using StatsBase
 
 """
 Computes the permanent of the matrix ``U`` of dimension ``n`` using the definition
@@ -145,7 +146,6 @@ function ryser_tensor(W::Array)
     return res
 
 end
-
 
 function multi_dim_ryser(U, gram_matrix)
 
@@ -549,6 +549,10 @@ function positive_entry(A::AbstractMatrix, niter=1e5)
 
 end
 
+direct_sum(A::Matrix, B::Matrix) = [A zeros(size(A)[1], size(B)[2]);
+									zeros(size(B)[1], size(A)[1]) B]
+
+
 """
     hafnian(A::AbstractMatrix; loop=false)
 
@@ -557,42 +561,77 @@ source: Marek Cygan and Marcin Pilipczuk. Faster exponential-time algorithms in
 graphs of bounded average degree. Information and Computation, 243:75–85, 2015.
 """
 function hafnian(A::AbstractMatrix; loop=false)
-    @argcheck issymmetric(A) && size(A)[1] == size(A)[2] && size(A)[1] % 2 == 0
-    n = div(size(A)[1], 2)
-    Pn = powerset(1:n)
+
+    @argcheck issymmetric(A)
+
     haf = 0
+    N = LinearAlgebra.checksquare(A)
+    n = div(N,2)
+    v = diag(A)
 
-    for Z in Pn
-        retain = []
-        for i in 1:n
-            i in Z ? (push!(retain,i), push!(retain,n+i)) : nothing
+    x = [0 1; 1 0]
+    X = x
+    for i in 1:n-1
+        X = direct_sum(X,x)
+    end
+    A *= X
+    vx = X * v
+
+    Pn = powerset(1:2:N-1, 1)
+    part = partitions(n)
+
+    function select_row_col(z::Vector{Int})
+        idx = Vector{Int}(undef,0)
+        for i in z
+            push!(idx,i)
+            push!(idx,i+1)
         end
-        sort!(unique!(retain))
-        @show Az = A[retain, retain]
-        @show v = diag(Az)'
+        return idx
+    end
 
-        id = Matrix{eltype(Az)}(I, div(size(Az)[1],2), div(size(Az)[2],2))
-        null = zeros(eltype(Az), div(size(Az)[1],2), div(size(Az)[2],2))
-        X = [null id; id null]
-        C = Az * X
-        eig = eigvals(C)
+    function compute_matching(idx::Vector{Int})
+
+        B = A[idx,idx]
+        v_b = v[idx]
+        G = vx[idx]'
+        e_ = eigvals(B)
+
+        function f(l::Int)
+
+            if loop
+                Gl = G
+                for i in 1:l-1
+                    Gl *= B
+                end
+                return sum(e_.^l)/(2l) + dot(Gl,v_b)/2
+            else
+                return sum(e_.^l)/(2l)
+            end
+
+        end
 
         res = 0
-        for j in 1:n
-            inter = 0
-            for k in 1:n
-                if j*k == n
-                    loop ? inter += 0.5 * (sum(eig.^k)/k + dot(v,X*(C)^(k-1)*v')) : inter += 0.5 * (sum(eig.^k)/k)
-                end
-            end
-            res += 1/factorial(j) * inter^j
+        for i in part
+            counter = values(countmap(i))
+            j = prod(counter)
+            factor = 1/factorial(j) * prod(map(f,i))
+            res += factor
         end
 
-        haf += (-1)^length(Z) * res
+        return res
+
+    end
+
+    for z in Pn
+        index = select_row_col(z)
+        coeff = compute_matching(index)
+        N % length(index) == 0 ? haf += coeff : haf -= coeff
     end
 
     return haf
 
 end
+
+
 
 end
