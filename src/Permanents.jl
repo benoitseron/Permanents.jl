@@ -624,8 +624,8 @@ function hafnian(A::AbstractMatrix; loop=false)
 
     for z in Pn
         index = select_row_col(z)
-        coeff = compute_matching(index)
-        N % length(index) == 0 ? haf += coeff : haf -= coeff
+        coef = compute_matching(index)
+        haf += (-1)^(n-length(z)) * coef
     end
 
     return haf
