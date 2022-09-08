@@ -569,6 +569,10 @@ function hafnian(A::AbstractMatrix; loop=false)
     n = div(N,2)
     v = diag(A)
 
+    if N == 1
+        return A[1,1]
+    end
+
     x = [0 1; 1 0]
     X = x
     for i in 1:n-1
