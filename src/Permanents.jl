@@ -562,7 +562,7 @@ graphs of bounded average degree. Information and Computation, 243:75–85, 2015
 """
 function hafnian(A::AbstractMatrix; loop=false)
 
-    @argcheck issymmetric(A)
+    # @argcheck issymmetric(A)
 
     haf = 0
     N = LinearAlgebra.checksquare(A)
