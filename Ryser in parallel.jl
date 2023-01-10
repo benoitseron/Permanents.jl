@@ -5,7 +5,7 @@ using Distributions
 using StatsBase
 using BenchmarkTools  
 
-" To use 8 thread start JULIA as follows:
+" To use 8 threads start JULIA as follows:
  julia --threads 8  
  https://docs.julialang.org/en/v1/manual/multi-threading/
 "
