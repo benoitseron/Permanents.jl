@@ -1,78 +1,96 @@
 using ArgCheck
 using LinearAlgebra
-using Polynomials
+using DynamicPolynomials
+using Combinatorics  # Required for factorial calculations
 
+# Function to generate a random Gram matrix with specified rank
 function rand_gram_matrix_rank(n, r)
-    """Generates a random Gram matrix of size n×n with rank at most r."""
     function normalized_random_vector(r)
         v = rand(ComplexF64, r)
-        v / norm(v)  # Normalize the vector
+        1/norm(v) .* v
     end
 
-    generating_vectors = hcat([normalized_random_vector(r) for _ in 1:n]...)
-    return generating_vectors' * generating_vectors
+    generating_vectors = hcat([normalized_random_vector(r) for i = 1:n]...)
+    generating_vectors' * generating_vectors
 end
 
-function incomplete_rank(A::Matrix; atol = 1000eps())
-    """Computes the permanent of a general n×n matrix A of rank r < n
-    using the polynomial approach described in the algorithm."""
-    
+# Function to compute the multinomial coefficient for a given tuple of integers
+function multinomial_coeff(alpha::Vector{Int})
+    return factorial(sum(alpha)) / prod(factorial(a) for a in alpha)
+end
+
+# Function to compute the permanent using Barvinok's approach
+function compute_permanent(A::Matrix; atol = 1000eps())
     n = size(A, 1)
     r = rank(A, atol = atol)
+    
+    @argcheck r < n
 
-    @argcheck r < n  # Ensure that rank is less than n
-
+    # Perform QR decomposition
     qr_dec = qr(A)
     G = qr_dec.Q
     B = qr_dec.R
 
-    # Step 2: Define the polynomials L and R
-    L_poly = prod([Polynomial(B[:, j][1:r]) for j in 1:n]) ### not good, it's not the same x!
-    R_poly = prod([Polynomial(G[i, :][1:r]) for i in 1:n])
+    # Define polynomial variables x1, x2, ..., xr
+    @polyvar x[1:r]
 
-    # Expand the polynomials L and R into their coefficients
-    L_coeffs = L_poly.coeffs
-    R_coeffs = R_poly.coeffs
+    # Construct the polynomials L and R using the different variables
+    L_poly = prod([sum(B[:, j][i] * x[i] for i in 1:r) for j in 1:n])
+    R_poly = prod([sum(G[i, :][j] * x[j] for j in 1:r) for i in 1:n])
 
-    # Step 3: Compute the permanent using the coefficients from the expanded polynomials
-    permanent_value = sum(L_coeffs[k] * R_coeffs[k] for k in 1:length(L_coeffs)) 
+    # Extract the coefficients of the polynomials L and R, including multinomial factors
+    L_coeffs, L_monomials = coefficients(L_poly, x)
+    R_coeffs, R_monomials = coefficients(R_poly, x)
 
-	############# the above is missing the factorials!
+    # Compute the permanent as sum of products of corresponding coefficients with multinomial weights
+    perm_A = 0
+    for i in 1:length(L_coeffs)
+        alpha = exponents(L_monomials[i])  # Exponents of the monomial
+        weight = multinomial_coeff(alpha)  # Multinomial coefficient
+        perm_A += weight * L_coeffs[i] * R_coeffs[i]
+    end
 
-    return permanent_value
+    return perm_A
 end
 
-# Example Usage
-atol = 1000eps()
-A = rand_gram_matrix_rank(3, 2)
-incomplete_rank_value = incomplete_rank(A, atol=atol)
-ryser_value = ryser(A)
+# Example usage
+A = rand_gram_matrix_rank(4, 3)
+permanent_A = compute_permanent(A)
+println("Permanent of matrix A: ", permanent_A)
 
-incomplete_rank_value ≈ ryser_value || error("The computed permanents do not match.")
+atol = 1e-6
 
-println("The computed permanent of the matrix is: ", permanent_value)
+n = size(A, 1)
+r = rank(A, atol = atol)
 
+@argcheck r < n
+
+# Perform QR decomposition
 qr_dec = qr(A)
-    G = qr_dec.Q
-    B = qr_dec.R
+G = qr_dec.Q
+B = qr_dec.R
 
-	G * B
+# Define polynomial variables x1, x2, ..., xr
+@polyvar x[1:r]
 
-	A
+# Construct the polynomials L and R using the different variables
+L_poly = prod([sum(B[:, j][i] * x[i] for i in 1:r) for j in 1:n])
+R_poly = prod([sum(G[i, :][j] * x[j] for j in 1:r) for i in 1:n])
 
-B[1,3]
+# Extract the coefficients of the polynomials L and R, including multinomial factors
+L_coeffs, L_monomials = coefficients(L_poly, x)
+R_coeffs, R_monomials = coefficients(R_poly, x)
 
+# Compute the permanent as sum of products of corresponding coefficients with multinomial weights
+perm_A = 0
+for i in 1:length(L_coeffs)
+    alpha = exponents(L_monomials[i])  # Exponents of the monomial
+    weight = multinomial_coeff(alpha)  # Multinomial coefficient
+    perm_A += weight * L_coeffs[i] * R_coeffs[i]
+end
 
-# Step 2: Define the polynomials L and R
-n = 3
-r = 2
+return perm_A
 
-L_poly = prod([Polynomial(B[:, j][1:r]) for j in 1:n])
-R_poly = prod([Polynomial(G[i, :][1:r]) for i in 1:n])
+coefficients(L_poly)
+L_poly
 
-L_coeffs = L_poly.coeffs
-R_coeffs = R_poly.coeffs
-
-j = 2
-
-Polynomial(B[:, j][1:r])
