@@ -1,6 +1,7 @@
 using Permanents
 using Test
 using LinearAlgebra
+using DynamicPolynomials
 
 const ATOL = 1000eps()
 

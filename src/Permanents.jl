@@ -250,7 +250,9 @@ end
 
 
 # Function to compute the permanent using Barvinok's approach
-function incomplete_rank(A::Matrix)
+function incomplete_rank(A::AbstractMatrix)
+
+	A = Matrix(A)
 
     n = size(A, 1)
     r = rank(A, atol = atol)
