@@ -2,6 +2,8 @@ using ArgCheck
 using LinearAlgebra
 using DynamicPolynomials
 using Combinatorics  # Required for factorial calculations
+using MultivariatePolynomials
+using Permanents
 
 # Function to generate a random Gram matrix with specified rank
 function rand_gram_matrix_rank(n, r)
@@ -18,6 +20,30 @@ end
 function multinomial_coeff(alpha::Vector{Int})
     return factorial(sum(alpha)) / prod(factorial(a) for a in alpha)
 end
+
+function extract_polynomial_terms(poly)
+    # Get variables of the polynomial
+    vars = variables(poly)
+    
+    # Get coefficients and monomials
+    coeffs, monos = coefficients(poly), monomials(poly)
+    
+    # Initialize array to store results
+    # Each element will be a tuple (coefficient, exponents)
+    terms = []
+    
+    # Process each term
+    for (coeff, mono) in zip(coeffs, monos)
+        # Get exponents for this monomial
+        exp = exponents(mono)
+        
+        # Add tuple of (coefficient, exponents) to results
+        push!(terms, (coeff, exp))
+    end
+    
+    return terms
+end
+
 
 # Function to compute the permanent using Barvinok's approach
 function compute_permanent(A::Matrix; atol = 1000eps())
@@ -54,8 +80,9 @@ function compute_permanent(A::Matrix; atol = 1000eps())
 end
 
 # Example usage
+
 A = rand_gram_matrix_rank(4, 3)
-permanent_A = compute_permanent(A)
+permanent_A = ryser(A)
 println("Permanent of matrix A: ", permanent_A)
 
 atol = 1e-6
@@ -91,8 +118,6 @@ end
 
 return perm_A
 
-coefficients(L_poly)
-L_poly
 
-# L_poly = (0.0016178527654873668 - 0.0005447625684290993im)x₁x₂x₃² + (-0.007876692478264337 + 0.014851162367459429im)x₁x₂²x₃ + (-0.015110921413782563 - 0.04220793243383275im)x₁x₂³ + (0.0077351553445978135 - 0.003661296181176763im)x₁²x₃² + (0.07182552832945983 + 0.033234607197451374im)x₁²x₂x₃ + (-0.3173927489671689 + 0.30589499024755046im)x₁²x₂² + (0.48286900410494205 - 0.28568907287070455im)x₁³x₃ + (0.8153405008646424 + 1.7584828430813846im)x₁³x₂ + (7.442190392157916 - 5.390038134840203im)x₁⁴
-#  need to extract each term and its coefficient
+
+extract_polynomial_terms(L_poly)
