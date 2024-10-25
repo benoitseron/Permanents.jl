@@ -161,6 +161,123 @@ function fast_glynn_perm(U::AbstractMatrix{T}) where T
 
 end
 
+# Function to compute the multinomial coefficient for a given tuple of integers
+function multinomial_coeff(alpha::Vector{Int})
+    return factorial(sum(alpha)) / prod(factorial(a) for a in alpha)
+end
 
+function extract_polynomial_terms(poly)
+    # Get variables of the polynomial
+    vars = variables(poly)
+    
+    # Get coefficients and monomials
+    coeffs, monos = coefficients(poly), monomials(poly)
+    
+    # Initialize array to store results
+    # Each element will be a tuple (coefficient, exponents)
+    terms = []
+    
+    # Process each term
+    for (coeff, mono) in zip(coeffs, monos)
+        # Get exponents for this monomial
+        exp = exponents(mono)
+        
+        # Add tuple of (coefficient, exponents) to results
+        push!(terms, (coeff, exp))
+    end
+    
+    return terms
+end
+
+function polynomial_to_dict(poly)
+    # Get coefficients and monomials
+    coeffs, monos = coefficients(poly), monomials(poly)
+    
+    # Create dictionary
+    terms_dict = Dict{Vector{Int}, Complex{Float64}}()
+    
+    # Fill dictionary with terms
+    for (coeff, mono) in zip(coeffs, monos)
+        exp = exponents(mono)
+        terms_dict[exp] = coeff
+    end
+    
+    return terms_dict
+end
+
+# Helper function to print the dictionary in a readable format
+function print_polynomial_dict(dict)
+    println("Terms:")
+    for (exp, coeff) in sort(collect(dict), by=first)
+        println("$exp => $coeff")
+    end
+end
+
+Base.factorial(coeff::Vector) = prod(factorial(c) for c in coeff)
+
+function multiply_shared_terms_with_coefficient(dict1::Dict{Vector{Int}, ComplexF64}, 
+                             dict2::Dict{Vector{Int}, ComplexF64})
+    # Initialize result dictionary
+    result = zero(ComplexF64)
+    
+    # Find shared keys (exponents)
+    shared_exponents = intersect(keys(dict1), keys(dict2))
+    
+    # Multiply coefficients for shared exponents
+    for exp in shared_exponents
+        
+        result += factorial(exp) * dict1[exp] * dict2[exp]
+    end
+    
+    return result
+end
+
+# Helper function to print the results
+function print_multiplication_results(dict1::Dict{Vector{Int}, ComplexF64}, 
+                                   dict2::Dict{Vector{Int}, ComplexF64})
+    result = multiply_shared_terms(dict1, dict2)
+    
+    println("Shared terms and their products:")
+    for (exp, coeff) in sort(collect(result), by=first)
+        println("\nExponents: $exp")
+        println("First coefficient: $(dict1[exp])")
+        println("Second coefficient: $(dict2[exp])")
+        println("Product: $coeff")
+    end
+    
+    println("\nTotal number of shared terms: $(length(result))")
+end
+
+
+# Function to compute the permanent using Barvinok's approach
+function incomplete_rank(A::Matrix)
+
+    n = size(A, 1)
+    r = rank(A, atol = atol)
+    
+    if r == n 
+        @warn"while the algorithm will work for any rank, you should rather use another one if full rank, using ryser instead"
+        return ryser(A)
+    end
+
+    # Perform QR decomposition
+    qr_dec = qr(A)
+    G = qr_dec.Q
+    B = qr_dec.R
+
+    # Define polynomial variables x1, x2, ..., xr
+    @polyvar x[1:r]
+
+    # Construct the polynomials L and R using the different variables
+    L_poly = prod([sum(B[:, j][i] * x[i] for i in 1:r) for j in 1:n])
+    R_poly = prod([sum(G[i, :][j] * x[j] for j in 1:r) for i in 1:n])
+
+    # Extract the coefficients of the polynomials L and R, including multinomial factors
+    coeffs_L = polynomial_to_dict(L_poly)
+    coeffs_R = polynomial_to_dict(R_poly)
+
+    return multiply_shared_terms_with_coefficient(coeffs_L, coeffs_R)
+
+end
 
 end
