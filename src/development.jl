@@ -1,65 +1,110 @@
 using ArgCheck
 using LinearAlgebra
-using Polynomials
+using DynamicPolynomials
+using Combinatorics  # Required for factorial calculations
+using MultivariatePolynomials
+using Permanents
 
+# Function to generate a random Gram matrix with specified rank
 function rand_gram_matrix_rank(n, r)
+    function normalized_random_vector(r)
+        v = rand(ComplexF64, r)
+        1/norm(v) .* v
+    end
 
-	"""random gram matrix with rank at most r, and with great likelihood r
-	"""
-
-	function normalized_random_vector(r)
-		v = rand(ComplexF64, r)
-		1/norm(v) .* v
-	end
-
-	generating_vectors = 0.
-	generating_vectors = hcat([normalized_random_vector(r) for i = 1:n]...)
-
-	generating_vectors' * generating_vectors
-
-
+    generating_vectors = hcat([normalized_random_vector(r) for i = 1:n]...)
+    generating_vectors' * generating_vectors
 end
 
 
-function incomplete_rank(A::Matrix; atol = 1000eps())
 
-	"""computes the permanent of a general matrix n*n A of rank r < n
-	following  Two Algorithmic Results for the Traveling Salesman Problem
-	Alexander I. Barvinok
+# Example usage
 
-	"""
+A = rand_gram_matrix_rank(4, 3)
+permanent_A = ryser(A)
+println("Permanent of matrix A: ", permanent_A)
 
-	n = size(A,1)
-	r = rank(A, atol = atol)
+incomplete_rank(A)
 
-	@argcheck r < n
-
-	qr_dec = qr(A)
-	G = qr_dec.Q
-	B = qr_dec.R
-
+ # Test case 1: Small matrix (4×4) with rank 3
+ @testset "4×4 matrix, rank 3" begin
+    for _ in 1:5  # Run multiple times with different random matrices
+        A = rand_gram_matrix_rank(4, 3)
+        perm_ryser = ryser(A)
+        perm_incomplete = incomplete_rank(A)
+        @test isapprox(perm_ryser, perm_incomplete, rtol=1e-10)
+    end
 end
 
-atol = 1000eps()
-A = rand_gram_matrix_rank(4,3)
 
-n = size(A,1)
-r = rank(A, atol = atol)
 
-@argcheck r < n
 
-qr_dec = qr(A)
-G = qr_dec.Q
-B = qr_dec.R
+@testset "Permanent Calculations - Incomplete Rank vs Ryser" begin
+        
+    # Test case 1: Small matrix (4×4) with rank 3
+    @testset "4×4 matrix, rank 3" begin
+        for _ in 1:5  # Run multiple times with different random matrices
+            A = rand_gram_matrix_rank(4, 3)
+            perm_ryser = ryser(A)
+            perm_incomplete = incomplete_rank(A)
+            @test isapprox(perm_ryser, perm_incomplete, rtol=1e-10)
+        end
+    end
 
-j = 1
+    # Test case 2: Larger matrix (6×6) with rank 4
+    @testset "6×6 matrix, rank 4" begin
+        for _ in 1:5
+            A = rand_gram_matrix_rank(6, 4)
+            perm_ryser = ryser(A)
+            perm_incomplete = incomplete_rank(A)
+            @test isapprox(perm_ryser, perm_incomplete, rtol=1e-10)
+        end
+    end
 
-G[j,:][1:r]
+    # Test case 3: Edge case - Almost full rank
+    @testset "5×5 matrix, rank 4" begin
+        for _ in 1:5
+            A = rand_gram_matrix_rank(5, 4)
+            perm_ryser = ryser(A)
+            perm_incomplete = incomplete_rank(A)
+            @test isapprox(perm_ryser, perm_incomplete, rtol=1e-10)
+        end
+    end
 
-L = prod([Polynomial(B[:,j][1:r]) for j in 1:n]).coeffs
-R = prod([Polynomial(G[i,:][1:r]) for i in 1:n]).coeffs
+    # Test case 4: Low rank case
+    @testset "5×5 matrix, rank 2" begin
+        for _ in 1:5
+            A = rand_gram_matrix_rank(5, 2)
+            perm_ryser = ryser(A)
+            perm_incomplete = incomplete_rank(A)
+            @test isapprox(perm_ryser, perm_incomplete, rtol=1e-10)
+        end
+    end
 
-[Polynomial(B[:,j][1:r]) for j in 1:n]
+    # Test case 5: Special matrices
+    @testset "Special matrices" begin
+        # Zero matrix
+        A = zeros(ComplexF64, 4, 4)
+        @test isapprox(ryser(A), incomplete_rank(A), rtol=1e-10)
+        
+        # Diagonal matrix with rank deficiency
+        A = Diagonal([1.0, 1.0, 1.0, 0.0])
+        @test isapprox(ryser(A), incomplete_rank(A), rtol=1e-10)
+        
+        # Complex matrix
+        A = rand_gram_matrix_rank(4, 2) + im * rand_gram_matrix_rank(4, 2)
+        @test isapprox(ryser(A), incomplete_rank(A), rtol=1e-10)
+    end
 
-n = 35
-t = @elapsed Permanents.ryser(ones(n,n))
+    # Test case 6: Error handling
+    @testset "Error handling" begin
+        # Non-square matrix
+        A = randn(3, 4)
+        @test_throws ArgumentError ryser(A)
+        @test_throws DimensionMismatch incomplete_rank(A)
+        
+        # Full rank matrix should issue warning
+        A = Matrix(1.0I, 4, 4)
+        @test_logs (:warn, "while the algorithm will work for any rank, you should rather use another one if full rank, using ryser instead") incomplete_rank(A)
+    end
+end
