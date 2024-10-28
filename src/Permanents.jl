@@ -1,6 +1,6 @@
 module Permanents
 
-export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor, positive_entry, hafnian
+export naive, naive_tensor, ryser, multi_dim_ryser, fast_glynn_perm, glynn, glynn_precision, ryser_tensor, positive_entry, hafnian, incomplete_rank
 
 using Combinatorics
 using LinearAlgebra
@@ -637,5 +637,73 @@ function hafnian(A::AbstractMatrix; loop=false)
 end
 
 
+Base.factorial(coeff::Vector) = prod(factorial(c) for c in coeff)
+
+function multiply_shared_terms_with_coefficient(dict1::Dict{Vector{Int}, ComplexF64}, 
+                             dict2::Dict{Vector{Int}, ComplexF64})
+    # Initialize result dictionary
+    result = zero(ComplexF64)
+    
+    # Find shared keys (exponents)
+    shared_exponents = intersect(keys(dict1), keys(dict2))
+    
+    # Multiply coefficients for shared exponents
+    for exp in shared_exponents
+        
+        result += factorial(exp) * dict1[exp] * dict2[exp]
+    end
+    
+    return result
+end
+
+# Helper function to print the results
+function print_multiplication_results(dict1::Dict{Vector{Int}, ComplexF64}, 
+                                   dict2::Dict{Vector{Int}, ComplexF64})
+    result = multiply_shared_terms(dict1, dict2)
+    
+    println("Shared terms and their products:")
+    for (exp, coeff) in sort(collect(result), by=first)
+        println("\nExponents: $exp")
+        println("First coefficient: $(dict1[exp])")
+        println("Second coefficient: $(dict2[exp])")
+        println("Product: $coeff")
+    end
+    
+    println("\nTotal number of shared terms: $(length(result))")
+end
+
+
+# Function to compute the permanent using Barvinok's approach
+function incomplete_rank(A::AbstractMatrix)
+
+	A = Matrix(A)
+
+    n = size(A, 1)
+    r = rank(A, atol = atol)
+    
+    if r == n 
+        @warn"while the algorithm will work for any rank, you should rather use another one if full rank, using ryser instead"
+        return ryser(A)
+    end
+
+    # Perform QR decomposition
+    qr_dec = qr(A)
+    G = qr_dec.Q
+    B = qr_dec.R
+
+    # Define polynomial variables x1, x2, ..., xr
+    @polyvar x[1:r]
+
+    # Construct the polynomials L and R using the different variables
+    L_poly = prod([sum(B[:, j][i] * x[i] for i in 1:r) for j in 1:n])
+    R_poly = prod([sum(G[i, :][j] * x[j] for j in 1:r) for i in 1:n])
+
+    # Extract the coefficients of the polynomials L and R, including multinomial factors
+    coeffs_L = polynomial_to_dict(L_poly)
+    coeffs_R = polynomial_to_dict(R_poly)
+
+    return multiply_shared_terms_with_coefficient(coeffs_L, coeffs_R)
+
+end
 
 end
