@@ -63,6 +63,39 @@ end
             @test fast_glynn_perm(U) ≈ theoretical_permanents_fourier_matrix[n] atol=ATOL
             @test multi_dim_ryser(U, ones(n,n)) ≈ abs(theoretical_permanents_fourier_matrix[n])^2 atol=ATOL
         end
+
+        ### consistency of ryser_tensor(W) ≈  multi_dim_ryser(U, S) ###
+
+        U = fourier_matrix(7,normalized = false)
+        @test glynn_precision(U; rtol = 1e-3, maxiter = 10^5) ≈ theoretical_permanents_fourier_matrix[7] rtol = 1e-2
+
+        n = 7
+        U = rand_haar(n)
+        S = rand_gram_matrix(n)
+
+        W = Array{eltype(S)}(undef, (n,n,n))
+
+        for ss in 1:n
+            for rr in 1:n
+                for j in 1:n
+                    W[ss,rr,j] = U[ss, j] * conj(U[rr, j]) * S[rr, ss]
+                end
+            end
+        end
+
+        @test ryser_tensor(W) ≈  multi_dim_ryser(U, S)
+
+        U = rand(4,4)
+        @test positive_entry(U) ≈ naive(U) atol=1e-2
+
+        A = [0 0 0 1 0 0; 0 0 0 1 1 0; 0 0 0 1 1 1; 1 1 1 0 0 0; 0 1 1 0 0 0; 0 0 1 0 0 0]
+        @test hafnian(A) ≈ 1 atol=1e-4
+        @test hafnian(A, loop=true) ≈ 1 atol=1e-4
+
+        A = [1 0 0 1 0 0; 0 0 0 1 1 0; 0 0 0 1 1 1; 1 1 1 0 0 0; 0 1 1 0 1 0; 0 0 1 0 0 0]
+        @test hafnian(A) ≈ 1 atol=1e-4
+        @test hafnian(A, loop=true) ≈ 2 atol=1e-4
+
     end
 
     @testset "Incomplete Rank Algorithm" begin
