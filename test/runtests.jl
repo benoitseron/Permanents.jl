@@ -19,6 +19,35 @@ function fourier_matrix(n; normalized = true)
     end
 end
 
+function rand_haar(n::Int)
+
+    """generates a Haar distributed unitary matrix of size n*n"""
+    # follows https://case.edu/artsci/math/esmeckes/Meckes_SAMSI_Lecture2.pdf
+
+    qr(randn(ComplexF64, n,n)).Q
+end
+
+
+function rand_gram_matrix(n::Int)
+
+	"""random gram matrix with full rank """
+
+	function normalized_random_vector(n)
+		v = rand(ComplexF64, n)
+		1/norm(v) .* v
+	end
+
+	generating_vectors = 0.
+	while det(generating_vectors) ≈ 0. #check it's a basis
+	    generating_vectors = hcat([normalized_random_vector(n) for i = 1:n]...)
+
+	end
+
+	generating_vectors' * generating_vectors
+
+end
+
+
 @testset "Permanents.jl" begin
     # Known theoretical values for Fourier matrix permanents
     theoretical_permanents_fourier_matrix = [1,0,-3,0,-5,0,-105,0,81,0,6765,0,175747,0,30375,0,25219857,0,142901109,0,4548104883,0]
